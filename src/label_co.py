@@ -36,6 +36,8 @@ def compute_label_cooccurrence_matrix(Y, method="jaccard"):
     return cooc
 
 cooc = compute_label_cooccurrence_matrix(all_labels)
-save_path = os.path.join('/gpfs/data/bbj-lab/users/sethis/experiments/preprocessing', "label_cooccur_Cat3.pt")
+BASE_PATH = '/gpfs/data/bbj-lab/users/chend5/experiments/preprocessing'
+FILE_NAME = 'label_cooccur_Cat3.pt'
+save_path = os.path.join(BASE_PATH, FILE_NAME)
 torch.save(torch.tensor(cooc, dtype=torch.float32), save_path)
 print(f"Label co-occurence matrix saved to: {save_path}")

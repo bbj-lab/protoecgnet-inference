@@ -1,5 +1,5 @@
 python3 ../src/main.py \
-    --job_name "2D_global_projection1" \
+    --job_name "2D_morph_classifier_01" \
     --epochs 200 \
     --batch_size 32 \
     --lr 0.0001 \
@@ -8,7 +8,7 @@ python3 ../src/main.py \
     --save_top_k 3 \
     --patience 10 \
     --resume_checkpoint False \
-    --training_stage "projection" \
+    --training_stage "classifier" \
     --dimension "2D" \
     --backbone "resnet18" \
     --single_class_prototype_per_class 18 \
@@ -22,6 +22,6 @@ python3 ../src/main.py \
     --l2 0.00017 \
     --scheduler_type "CosineAnnealingLR" \
     --custom_groups True \
-    --proto_time_len 32 \
+    --proto_time_len 3 \
     --proto_dim 512 \
-    --pretrained_weights "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/2D_global_train1/last.ckpt"
+    --pretrained_weights "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/2D_morph_projection_01/2D_morph_projection_01_projection.pth"

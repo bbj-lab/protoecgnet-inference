@@ -1,5 +1,5 @@
 python3 ../src/main.py \
-    --job_name "2D_global_projection1" \
+    --job_name "1D_rhythm_classifier_01" \
     --epochs 200 \
     --batch_size 32 \
     --lr 0.0001 \
@@ -8,13 +8,13 @@ python3 ../src/main.py \
     --save_top_k 3 \
     --patience 10 \
     --resume_checkpoint False \
-    --training_stage "projection" \
-    --dimension "2D" \
-    --backbone "resnet18" \
-    --single_class_prototype_per_class 18 \
+    --training_stage "classifier" \
+    --dimension "1D" \
+    --backbone "resnet1d18" \
+    --single_class_prototype_per_class 5 \
     --joint_prototypes_per_border 0 \
     --sampling_rate 100 \
-    --label_set "3" \
+    --label_set "1" \
     --save_weights True \
     --seed 42 \
     --num_workers 4 \
@@ -24,4 +24,4 @@ python3 ../src/main.py \
     --custom_groups True \
     --proto_time_len 32 \
     --proto_dim 512 \
-    --pretrained_weights "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/2D_global_train1/last.ckpt"
+    --pretrained_weights "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/1D_rhythm_projection_01/1D_rhythm_projection_01_projection.pth"

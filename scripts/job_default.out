@@ -1,7 +1,0 @@
-
-Currently Loaded Modules:
-  1) gcc/12.1.0   2) miniconda3/24.9.2
-
- 
-
-srun: error: cri22cn401: task 0: Exited with exit code 1

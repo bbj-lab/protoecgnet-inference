@@ -369,6 +369,8 @@ class ProtoECGNet1D(nn.Module):
             contains_prototypes = any("prototype_vectors" in k for k in state_dict.keys())
             contains_classifier = any("classifier" in k for k in state_dict.keys())
 
+            print(f"[DEBUG-1157] pretrained_weights: {pretrained_weights}, contains_prototypes: {contains_prototypes}, containers_classifier: {contains_classifier}")
+
             if contains_prototypes and contains_classifier:
                 print(f"Full ProtoECGNet1D checkpoint detected. Skipping backbone-only loading...")
                 backbone_only = False

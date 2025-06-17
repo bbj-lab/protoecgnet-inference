@@ -1,5 +1,5 @@
 python3 ../src/main.py \
-    --job_name "2D_global_projection1" \
+    --job_name "2D_morph_projection_01" \
     --epochs 200 \
     --batch_size 32 \
     --lr 0.0001 \
@@ -22,6 +22,6 @@ python3 ../src/main.py \
     --l2 0.00017 \
     --scheduler_type "CosineAnnealingLR" \
     --custom_groups True \
-    --proto_time_len 32 \
+    --proto_time_len 3 \
     --proto_dim 512 \
-    --pretrained_weights "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/2D_global_train1/last.ckpt"
+    --pretrained_weights "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/2D_morph_train_01/last.ckpt"
