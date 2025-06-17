@@ -8,16 +8,27 @@ from proto_models1D import ProtoECGNet1D
 from proto_models2D import ProtoECGNet2D
 from training_functions import seed_everything
 
-# --- User: Update these paths for your model and metadata ---
+# # --- User: Update these paths for your model and metadata ---
 PRETRAINED_WEIGHTS = "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/1D_rhythm_projection_01/1D_rhythm_projection_01_projection.pth"
 METADATA_JSON = "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/1D_rhythm_projection_01/1D_rhythm_projection_01_prototype_metadata.json"
 MODEL_TYPE = "1D"  # Set to "1D" or "2D"
 LABEL_SET = "1"    # Set to "1" for 1D, "3" for 2D partial/morph, "4" for 2D global
 BACKBONE = "resnet1d18"  # Set to "resnet18" for 2D, and "resnet1d18" for 1D
 PROTO_DIM = 512
-PROTO_TIME_LEN = 3  # Use 3 for 2D partial/morph, 32 for 1D and 2D global
+PROTO_TIME_LEN = 32  # Use 3 for 2D partial/morph, 32 for 1D and 2D global
 SINGLE_PPC = 5      # single_class_prototype_per_class, Use 5 for 1D, 18 for 2D partial/morph, 7 for 2D global
 JOINT_PPB = 0       # joint_prototypes_per_border
+
+# 2D Partial/Morph 
+# PRETRAINED_WEIGHTS = "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/2D_morph_projection_01/2D_morph_projection_01_projection.pth"
+# METADATA_JSON = "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/2D_morph_projection_01/2D_morph_projection_01_prototype_metadata.json"
+# MODEL_TYPE = "2D"  # Set to "1D" or "2D"
+# LABEL_SET = "3"    # Set to "1" for 1D, "3" for 2D partial/morph, "4" for 2D global
+# BACKBONE = "resnet18"  # Set to "resnet18" for 2D, and "resnet1d18" for 1D
+# PROTO_DIM = 512
+# PROTO_TIME_LEN = 3  # Use 3 for 2D partial/morph, 32 for 1D and 2D global
+# SINGLE_PPC = 5      # single_class_prototype_per_class, Use 5 for 1D, 18 for 2D partial/morph, 7 for 2D global
+# JOINT_PPB = 0       # joint_prototypes_per_border
 
 # --- Utility Functions ---
 def list_test_sample_ids(test_loader, max_samples=20):
