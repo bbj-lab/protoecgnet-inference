@@ -3,12 +3,15 @@ import numpy as np
 import json
 import random
 import os
+import argparse
+import pandas as pd
 from ecg_utils import get_dataloaders, load_label_mappings
 from proto_models1D import ProtoECGNet1D
 from proto_models2D import ProtoECGNet2D
 from training_functions import seed_everything
+from sklearn.metrics import roc_auc_score, f1_score
 
-# # --- User: Update these paths for your model and metadata ---
+# 1D Rhythm 
 PRETRAINED_WEIGHTS = "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/1D_rhythm_projection_01/1D_rhythm_projection_01_projection.pth"
 METADATA_JSON = "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/1D_rhythm_projection_01/1D_rhythm_projection_01_prototype_metadata.json"
 MODEL_TYPE = "1D"  # Set to "1D" or "2D"
@@ -27,6 +30,17 @@ JOINT_PPB = 0       # joint_prototypes_per_border
 # BACKBONE = "resnet18"  # Set to "resnet18" for 2D, and "resnet1d18" for 1D
 # PROTO_DIM = 512
 # PROTO_TIME_LEN = 3  # Use 3 for 2D partial/morph, 32 for 1D and 2D global
+# SINGLE_PPC = 5      # single_class_prototype_per_class, Use 5 for 1D, 18 for 2D partial/morph, 7 for 2D global
+# JOINT_PPB = 0       # joint_prototypes_per_border
+
+# 2D Global
+# PRETRAINED_WEIGHTS = "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/2D_global_projection_01/2D_global_projection_01_projection.pth"
+# METADATA_JSON = "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/2D_global_projection_01/2D_global_projection_01_prototype_metadata.json"
+# MODEL_TYPE = "2D"  # Set to "1D" or "2D"
+# LABEL_SET = "4"    # Set to "1" for 1D, "3" for 2D partial/morph, "4" for 2D global
+# BACKBONE = "resnet18"  # Set to "resnet18" for 2D, and "resnet1d18" for 1D
+# PROTO_DIM = 512
+# PROTO_TIME_LEN = 32  # Use 3 for 2D partial/morph, 32 for 1D and 2D global
 # SINGLE_PPC = 5      # single_class_prototype_per_class, Use 5 for 1D, 18 for 2D partial/morph, 7 for 2D global
 # JOINT_PPB = 0       # joint_prototypes_per_border
 
@@ -91,7 +105,65 @@ def display_granular_prototypes(probabilities, similarity_scores, label_names, p
         for i, p_info in enumerate(relevant_prototypes[:top_n]):
             print(f"  {i+1}. Prototype {p_info['proto_id']} (Original Labels: {', '.join(p_info['original_labels'])}) – Score: {p_info['score']:.4f}")
 
+def print_metadata_head(metadata_json_path, num_lines=50):
+    print(f"\n--- First {num_lines} lines of {metadata_json_path} ---")
+    with open(metadata_json_path, 'r') as f:
+        for i, line in enumerate(f):
+            print(line.rstrip())
+            if i + 1 >= num_lines:
+                break
+
+def sanity_check_model_performance(model, test_loader, label_names, device):
+    print("\n--- Running Sanity Check: Model Performance on Test Set ---")
+    y_true = []
+    y_pred = []
+    model.eval()
+    with torch.no_grad():
+        for X_batch, y_batch, _ in test_loader:
+            X_batch = X_batch.to(device)
+            logits, _, _ = model(X_batch)
+            probs = torch.sigmoid(logits).cpu().numpy()
+            y_true.append(y_batch.cpu().numpy())
+            y_pred.append(probs)
+    y_true = np.concatenate(y_true, axis=0)
+    y_pred = np.concatenate(y_pred, axis=0)
+    try:
+        macro_auc = roc_auc_score(y_true, y_pred, average='macro')
+    except Exception as e:
+        macro_auc = f"Error: {e}"
+    f1 = f1_score(y_true, (y_pred > 0.5).astype(int), average='micro')
+    print(f"Macro AUC: {macro_auc}")
+    print(f"F1 (micro): {f1}")
+
+def check_label_mismatch(label_names, label_set, csv_path="scp_statementsRegrouped2.csv"):
+    print("\n--- Checking for Label Mismatch ---")
+    category = int(label_set)
+    df = pd.read_csv(csv_path)
+    csv_labels = df[df['prototype_category'] == category].iloc[:, 0].tolist()
+    print(f"\n--- Labels from CSV for category {category} ---")
+    for i, name in enumerate(csv_labels):
+        print(f"{i}: {name}")
+    print("\n--- label_names from inference ---")
+    for i, name in enumerate(label_names):
+        print(f"{i}: {name}")
+    if csv_labels == label_names:
+        print("\nLabel order and content match exactly!")
+    else:
+        print("\nWARNING: Label order or content does NOT match!")
+        for i, (csv_label, infer_label) in enumerate(zip(csv_labels, label_names)):
+            if csv_label != infer_label:
+                print(f"Mismatch at index {i}: CSV='{csv_label}' vs Inference='{infer_label}'")
+        if len(csv_labels) != len(label_names):
+            print(f"CSV label count: {len(csv_labels)}, Inference label count: {len(label_names)}")
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run inference and prototype analysis.")
+    parser.add_argument('--show-prototypes', action='store_true', help='Show Top Prototypes and Similarity Scores for Each Class')
+    parser.add_argument('--sanity-check', action='store_true', help='Run model performance sanity check on test set')
+    parser.add_argument('--show-metadata', action='store_true', help='Print first 50 lines of metadata JSON')
+    parser.add_argument('--check-labels', action='store_true', help='Check for label mismatch between CSV and inference label_names')
+    args = parser.parse_args()
+
     seed_everything(42)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -160,6 +232,12 @@ if __name__ == "__main__":
     }
     _, _, test_loader, _ = get_dataloaders(**test_loader_params)
 
+    if args.show_metadata:
+        print_metadata_head(METADATA_JSON, num_lines=50)
+
+    if args.sanity_check:
+        sanity_check_model_performance(model, test_loader, label_names, device)
+
     # --- Select a Sample for Inference ---
     target_ecg_ids = list_test_sample_ids(test_loader, max_samples=20)
 
@@ -206,27 +284,31 @@ if __name__ == "__main__":
         )
 
         # --- Display Prototypes and Similarity Scores for Each Class ---
-        top_n = 5  # Number of top prototypes to show per class
-        print("\n--- Top Prototypes and Similarity Scores for Each Class (regardless of probability) ---")
-        for class_idx, class_name in enumerate(label_names):
-            relevant_prototypes = []
-            for proto_id_str, meta in prototype_metadata.items():
-                # Match using prototype_class
-                if meta.get('prototype_class') == class_name:
-                    proto_idx = int(proto_id_str)
-                    # Get true label names from true_labels vector
-                    true_labels = meta.get('true_labels', [])
-                    true_label_names = [label_names[i] for i, v in enumerate(true_labels) if v == 1.0]
-                    relevant_prototypes.append({
-                        'proto_id': proto_idx,
-                        'score': similarity_scores[proto_idx],
-                        'prototype_class': meta.get('prototype_class', 'N/A'),
-                        'true_label_names': true_label_names
-                    })
-            if not relevant_prototypes:
-                print(f"  No prototypes found for class '{class_name}'.")
-                continue
-            relevant_prototypes.sort(key=lambda x: x['score'], reverse=True)
-            print(f"\nClass: {class_name}")
-            for i, p_info in enumerate(relevant_prototypes[:top_n]):
-                print(f"  {i+1}. Prototype {p_info['proto_id']} (Prototype Class: {p_info['prototype_class']}, True Labels: {', '.join(p_info['true_label_names'])}) – Score: {p_info['score']:.4f}") 
+        if args.show_prototypes:
+            top_n = 5  # Number of top prototypes to show per class
+            print("\n--- Top Prototypes and Similarity Scores for Each Class (regardless of probability) ---")
+            for class_idx, class_name in enumerate(label_names):
+                relevant_prototypes = []
+                for proto_id_str, meta in prototype_metadata.items():
+                    # Match using prototype_class
+                    if meta.get('prototype_class') == class_name:
+                        proto_idx = int(proto_id_str)
+                        # Get true label names from true_labels vector
+                        true_labels = meta.get('true_labels', [])
+                        true_label_names = [label_names[i] for i, v in enumerate(true_labels) if v == 1.0]
+                        relevant_prototypes.append({
+                            'proto_id': proto_idx,
+                            'score': similarity_scores[proto_idx],
+                            'prototype_class': meta.get('prototype_class', 'N/A'),
+                            'true_label_names': true_label_names
+                        })
+                if not relevant_prototypes:
+                    print(f"  No prototypes found for class '{class_name}'.")
+                    continue
+                relevant_prototypes.sort(key=lambda x: x['score'], reverse=True)
+                print(f"\nClass: {class_name}")
+                for i, p_info in enumerate(relevant_prototypes[:top_n]):
+                    print(f"  {i+1}. Prototype {p_info['proto_id']} (Prototype Class: {p_info['prototype_class']}, True Labels: {', '.join(p_info['true_label_names'])}) – Score: {p_info['score']:.4f}")
+
+    if args.check_labels:
+        check_label_mismatch(label_names, LABEL_SET, csv_path="scp_statementsRegrouped2.csv") 
