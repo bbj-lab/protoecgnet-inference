@@ -12,7 +12,7 @@ from training_functions import seed_everything
 from sklearn.metrics import roc_auc_score, f1_score
 
 # 1D Rhythm 
-PRETRAINED_WEIGHTS = "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/1D_rhythm_projection_01/1D_rhythm_projection_01_projection.pth"
+PRETRAINED_WEIGHTS = "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/1D_rhythm_classifier_01/last.ckpt"
 METADATA_JSON = "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/1D_rhythm_projection_01/1D_rhythm_projection_01_prototype_metadata.json"
 MODEL_TYPE = "1D"  # Set to "1D" or "2D"
 LABEL_SET = "1"    # Set to "1" for 1D, "3" for 2D partial/morph, "4" for 2D global
@@ -79,6 +79,37 @@ def get_random_test_sample(test_loader):
     idx = random.randint(0, len(X_batch) - 1)
     return X_batch[idx], y_batch[idx], sample_ids[idx]
 
+def load_model_weights(model, weights_path):
+    if weights_path.endswith('.pth'):
+        state_dict = torch.load(weights_path, map_location='cpu')
+        # If saved with DataParallel, keys may have 'module.' prefix
+        if any(k.startswith('module.') for k in state_dict.keys()):
+            from collections import OrderedDict
+            new_state_dict = OrderedDict()
+            for k, v in state_dict.items():
+                new_state_dict[k.replace('module.', '')] = v
+            state_dict = new_state_dict
+        model.load_state_dict(state_dict, strict=False)
+        print(f"Loaded weights from {weights_path} (pth format)")
+    elif weights_path.endswith('.ckpt'):
+        checkpoint = torch.load(weights_path, map_location='cpu', weights_only=False)
+        # PyTorch Lightning saves weights under 'state_dict'
+        state_dict = checkpoint['state_dict'] if 'state_dict' in checkpoint else checkpoint
+        # Remove 'model.' or 'net.' prefix if present
+        new_state_dict = {}
+        for k, v in state_dict.items():
+            if k.startswith('model.'):
+                new_state_dict[k[len('model.'):]] = v
+            elif k.startswith('net.'):
+                new_state_dict[k[len('net.'):]] = v
+            else:
+                new_state_dict[k] = v
+        model.load_state_dict(new_state_dict, strict=False)
+        print(f"Loaded weights from {weights_path} (ckpt format)")
+    else:
+        raise ValueError(f"Unsupported weights file format: {weights_path}")
+    return model
+
 # --- Main Granular Prototype Display ---
 def display_granular_prototypes(probabilities, similarity_scores, label_names, prototype_metadata, threshold=0.5, top_n=5):
     print("\n--- Granular Prototype Analysis ---")
@@ -91,19 +122,23 @@ def display_granular_prototypes(probabilities, similarity_scores, label_names, p
         print(f"\n--- Top Prototypes for Predicted Class: {class_name} (Prob: {probabilities[class_idx]:.4f}) ---")
         relevant_prototypes = []
         for proto_id_str, meta in prototype_metadata.items():
-            if class_name in meta['labels']:
+            if meta.get('prototype_class') == class_name:
                 proto_idx = int(proto_id_str)
+                # Get true label names from true_labels vector
+                true_labels = meta.get('true_labels', [])
+                true_label_names = [label_names[i] for i, v in enumerate(true_labels) if v == 1.0]
                 relevant_prototypes.append({
                     'proto_id': proto_idx,
                     'score': similarity_scores[proto_idx],
-                    'original_labels': meta['labels']
+                    'prototype_class': meta.get('prototype_class', 'N/A'),
+                    'true_label_names': true_label_names
                 })
         if not relevant_prototypes:
             print(f"  No prototypes found directly associated with '{class_name}'.")
             continue
         relevant_prototypes.sort(key=lambda x: x['score'], reverse=True)
         for i, p_info in enumerate(relevant_prototypes[:top_n]):
-            print(f"  {i+1}. Prototype {p_info['proto_id']} (Original Labels: {', '.join(p_info['original_labels'])}) – Score: {p_info['score']:.4f}")
+            print(f"  {i+1}. Prototype {p_info['proto_id']} (Prototype Class: {p_info['prototype_class']}, True Labels: {', '.join(p_info['true_label_names'])}) – Score: {p_info['score']:.4f}")
 
 def print_metadata_head(metadata_json_path, num_lines=50):
     print(f"\n--- First {num_lines} lines of {metadata_json_path} ---")
@@ -193,7 +228,7 @@ if __name__ == "__main__":
             dropout=0.0,
             custom_groups=True,
             label_set=LABEL_SET,
-            pretrained_weights=PRETRAINED_WEIGHTS
+            pretrained_weights=None  # Don't load here
         ).to(device)
     elif MODEL_TYPE == "2D":
         model = ProtoECGNet2D(
@@ -212,10 +247,11 @@ if __name__ == "__main__":
             dropout=0.0,
             custom_groups=True,
             label_set=LABEL_SET,
-            pretrained_weights=PRETRAINED_WEIGHTS
+            pretrained_weights=None  # Don't load here
         ).to(device)
     else:
         raise ValueError("MODEL_TYPE must be '1D' or '2D'")
+    model = load_model_weights(model, PRETRAINED_WEIGHTS)
     model.eval()
 
     # --- Get Test Data Loader ---
