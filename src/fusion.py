@@ -2,7 +2,7 @@ import os
 import torch
 import pandas as pd
 import torch.nn as nn
-from ecg_utils import get_dataloaders, DATASET_PATH
+from ecg_utils import get_dataloaders, DATASET_PATH, SCP_GROUP_PATH_ABS, SCP_GROUP_PATH
 from proto_models1D import ProtoECGNet1D
 from proto_models2D import ProtoECGNet2D
 
@@ -37,7 +37,10 @@ class FusionProtoClassifier(nn.Module):
         return logits
 
 def load_fusion_label_mappings():
-    label_df = pd.read_csv(os.path.join(DATASET_PATH, "scp_statementsRegrouped2.csv"), index_col=0)
+    if SCP_GROUP_PATH_ABS is not None:
+        label_df = pd.read_csv(SCP_GROUP_PATH_ABS, index_col=0)
+    else:
+        label_df = pd.read_csv(os.path.join(DATASET_PATH, SCP_GROUP_PATH), index_col=0)
     assert "prototype_category" in label_df.columns
 
     labels_1 = label_df[label_df["prototype_category"] == 1].index.tolist()

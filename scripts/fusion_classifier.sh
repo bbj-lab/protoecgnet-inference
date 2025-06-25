@@ -9,8 +9,11 @@ python3 ../src/main.py \
     --patience 10 \
     --resume_checkpoint False \
     --training_stage "fusion" \
+    --dimension "2D" \
+    --backbone "resnet18" \
     --sampling_rate 100 \
     --save_weights True \
+    --label_set "3" \
     --seed 42 \
     --num_workers 4 \
     --dropout 0.35 \
@@ -20,3 +23,15 @@ python3 ../src/main.py \
     --fusion_weights1 "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/1D_rhythm_projection_01/1D_rhythm_projection_01_projection.pth" \
     --fusion_weights3 "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/2D_morph_projection_01/2D_morph_projection_01_projection.pth" \
     --fusion_weights4 "/gpfs/data/bbj-lab/users/chend5/experiments/checkpoints/2D_global_projection_01/2D_global_projection_01_projection.pth" \
+    --fusion_backbone1 "resnet1d18" \
+    --fusion_backbone3 "resnet18" \
+    --fusion_backbone4 "resnet18" \
+    --fusion_proto_dim1 512 \
+    --fusion_proto_dim3 512 \
+    --fusion_proto_dim4 512 \
+    --fusion_single_ppc1 5 \
+    --fusion_single_ppc3 18 \
+    --fusion_single_ppc4 7 \
+    --fusion_joint_ppb1 0 \
+    --fusion_joint_ppb3 0 \
+    --fusion_joint_ppb4 0

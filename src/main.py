@@ -90,11 +90,12 @@ if __name__ == '__main__':
 
     parser.add_argument('--fusion_single_ppc1', type=int, default=5, help='Single-class prototypes per class for category 1')
     parser.add_argument('--fusion_single_ppc3', type=int, default=18, help='Single-class prototypes per class for category 3')
-    parser.add_argument('--fusion_single_ppc4', type=int, default=3, help='Single-class prototypes per class for category 4')
+    parser.add_argument('--fusion_single_ppc4', type=int, default=7, help='Single-class prototypes per class for category 4')
 
     parser.add_argument('--fusion_joint_ppb1', type=int, default=0, help='Joint prototypes per border for category 1')
     parser.add_argument('--fusion_joint_ppb3', type=int, default=0, help='Joint prototypes per border for category 3')
     parser.add_argument('--fusion_joint_ppb4', type=int, default=0, help='Joint prototypes per border for category 4')
+
     args = parser.parse_args()
 
     # Set random seed

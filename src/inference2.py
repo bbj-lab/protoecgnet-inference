@@ -1,3 +1,22 @@
+"""
+ProtoECGNet Inference Script (v2)
+
+This script provides standalone inference capabilities for trained ProtoECGNet models
+without requiring ground truth labels or calculating performance metrics. This makes
+it suitable for deploying models on new datasets where labels are not available.
+
+Key Features:
+- Supports both 1D and 2D ProtoECGNet models
+- Provides case-based explanations through prototype similarity analysis
+- Can process individual samples or batch inference
+- Includes sanity checks and metadata validation
+- Flexible configuration for different model branches (rhythm, morphology, global)
+
+Usage:
+    python inference2.py --show-prototypes --sanity-check
+    python inference2.py --check-labels --show-metadata
+"""
+
 import torch
 import numpy as np
 import json
@@ -191,12 +210,65 @@ def check_label_mismatch(label_names, label_set, csv_path="scp_statementsRegroup
         if len(csv_labels) != len(label_names):
             print(f"CSV label count: {len(csv_labels)}, Inference label count: {len(label_names)}")
 
+def save_inference_results(ecg_id, probabilities, similarity_scores, label_names, prototype_metadata, output_file="inference_results.json"):
+    """
+    Save inference results to a JSON file for batch processing and analysis.
+    """
+    results = {
+        "ecg_id": int(ecg_id),
+        "timestamp": pd.Timestamp.now().isoformat(),
+        "model_config": {
+            "model_type": MODEL_TYPE,
+            "label_set": LABEL_SET,
+            "backbone": BACKBONE,
+            "pretrained_weights": PRETRAINED_WEIGHTS
+        },
+        "predictions": {
+            label_names[i]: float(prob) for i, prob in enumerate(probabilities)
+        },
+        "top_predictions": [
+            {"label": label_names[i], "probability": float(prob)} 
+            for i, prob in sorted(enumerate(probabilities), key=lambda x: x[1], reverse=True)[:10]
+        ],
+        "prototype_similarities": {
+            str(i): float(sim) for i, sim in enumerate(similarity_scores)
+        }
+    }
+    
+    # Add prototype metadata for top prototypes
+    top_prototypes = []
+    for proto_id_str, meta in prototype_metadata.items():
+        proto_idx = int(proto_id_str)
+        if proto_idx < len(similarity_scores):
+            top_prototypes.append({
+                "prototype_id": proto_idx,
+                "similarity_score": float(similarity_scores[proto_idx]),
+                "prototype_class": meta.get("prototype_class", "N/A"),
+                "true_labels": meta.get("true_labels", [])
+            })
+    
+    # Sort by similarity score and keep top 20
+    top_prototypes.sort(key=lambda x: x["similarity_score"], reverse=True)
+    results["top_prototypes"] = top_prototypes[:20]
+    
+    # Save to file
+    try:
+        with open(output_file, 'w') as f:
+            json.dump(results, f, indent=2)
+        print(f"Results saved to {output_file}")
+    except Exception as e:
+        print(f"Failed to save results: {e}")
+    
+    return results
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run inference and prototype analysis.")
     parser.add_argument('--show-prototypes', action='store_true', help='Show Top Prototypes and Similarity Scores for Each Class')
     parser.add_argument('--sanity-check', action='store_true', help='Run model performance sanity check on test set')
     parser.add_argument('--show-metadata', action='store_true', help='Print first 50 lines of metadata JSON')
     parser.add_argument('--check-labels', action='store_true', help='Check for label mismatch between CSV and inference label_names')
+    parser.add_argument('--save-results', action='store_true', help='Save inference results to JSON file')
+    parser.add_argument('--output-file', type=str, default='inference_results.json', help='Output file path for saved results')
     args = parser.parse_args()
 
     seed_everything(42)
@@ -225,7 +297,7 @@ if __name__ == "__main__":
             class_specific=True,
             last_layer_connection_weight=1.0,
             m=0.05,
-            dropout=0.0,
+            dropout=0,
             custom_groups=True,
             label_set=LABEL_SET,
             pretrained_weights=None  # Don't load here
@@ -244,7 +316,7 @@ if __name__ == "__main__":
             class_specific=True,
             last_layer_connection_weight=1.0,
             m=0.05,
-            dropout=0.0,
+            dropout=0,
             custom_groups=True,
             label_set=LABEL_SET,
             pretrained_weights=None  # Don't load here
@@ -345,6 +417,10 @@ if __name__ == "__main__":
                 print(f"\nClass: {class_name}")
                 for i, p_info in enumerate(relevant_prototypes[:top_n]):
                     print(f"  {i+1}. Prototype {p_info['proto_id']} (Prototype Class: {p_info['prototype_class']}, True Labels: {', '.join(p_info['true_label_names'])}) – Score: {p_info['score']:.4f}")
+
+        # --- Save Inference Results ---
+        if args.save_results:
+            save_inference_results(ecg_id, probabilities, similarity_scores, label_names, prototype_metadata, output_file=args.output_file)
 
     if args.check_labels:
         check_label_mismatch(label_names, LABEL_SET, csv_path="scp_statementsRegrouped2.csv") 
